@@ -1,10 +1,14 @@
 from flask import Flask, jsonify
 from pymongo import MongoClient
+from flask_cors import CORS
 import os
 
 app = Flask(__name__)
 
-MONGO_URI = "mongodb+srv://bhavy:8yOSk1pf5r1XQ6RK@cluster0.optglus.mongodb.net/?retryWrites=true&w=majority"
+# ✅ FIX CORS PROPERLY
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+MONGO_URI = os.environ.get("MONGO_URI")
 client = MongoClient(MONGO_URI)
 
 db = client["ipl_live"]
