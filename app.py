@@ -4,7 +4,7 @@ import os
 
 app = Flask(__name__)
 
-MONGO_URI = "your_mongo_url"
+MONGO_URI = "mongodb+srv://bhavy:8yOSk1pf5r1XQ6RK@cluster0.optglus.mongodb.net/?retryWrites=true&w=majority"
 client = MongoClient(MONGO_URI)
 
 db = client["ipl_live"]
