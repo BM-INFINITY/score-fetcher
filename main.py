@@ -2,48 +2,61 @@ import requests
 import json
 import time
 import hashlib
+import threading
 from datetime import datetime
+from flask import Flask, jsonify
 from pymongo import MongoClient
 
-# 🔗 IPL URL
-URL = "https://ipl-stats-sports-mechanic.s3.ap-south-1.amazonaws.com/ipl/feeds/2417-Innings1.js"
+app = Flask(__name__)
 
-CHECK_INTERVAL = 2  # seconds
+# 🔗 URLs (AUTO SWITCH innings)
+URLS = [
+    "https://ipl-stats-sports-mechanic.s3.ap-south-1.amazonaws.com/ipl/feeds/2417-Innings2.js",
+    "https://ipl-stats-sports-mechanic.s3.ap-south-1.amazonaws.com/ipl/feeds/2417-Innings1.js"
+]
 
-# 🔗 MongoDB Connection
+CHECK_INTERVAL = 2
+
+# 🔗 MongoDB
 MONGO_URI = "mongodb+srv://bhavy:8yOSk1pf5r1XQ6RK@cluster0.optglus.mongodb.net/?retryWrites=true&w=majority"
-
 client = MongoClient(MONGO_URI)
 
-# ✅ Create NEW DB (auto created if not exists)
-db = client["ipl_live"]   # 👉 new DB name
-
-# ✅ Create collection
-collection = db["innings1_live"]
+db = client["ipl_live"]
+collection = db["innings_live"]
 
 
+# 🔧 Clean JSON
 def get_clean_json(text):
     if text.startswith("onScoring("):
         text = text[len("onScoring("):-2]
     return json.loads(text)
 
 
+# 🔧 Hash (to detect changes)
 def get_hash(data):
     return hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
+# 🔥 Fetch (SMART SWITCH)
 def fetch_data():
-    try:
-        response = requests.get(URL, timeout=10, headers={
-            "User-Agent": "Mozilla/5.0"
-        })
-        response.raise_for_status()
-        return get_clean_json(response.text)
-    except Exception as e:
-        print("❌ Fetch error:", e)
-        return None
+    for url in URLS:
+        try:
+            response = requests.get(url, timeout=10, headers={
+                "User-Agent": "Mozilla/5.0"
+            })
+
+            if response.status_code == 200:
+                print(f"✅ Using: {url.split('/')[-1]}")
+                return get_clean_json(response.text)
+
+        except Exception as e:
+            print("❌ Error:", e)
+
+    print("⚠️ No valid innings data found")
+    return None
 
 
+# 💾 Save to Mongo
 def save_to_mongo(data):
     try:
         collection.update_one(
@@ -61,9 +74,9 @@ def save_to_mongo(data):
         print("❌ Mongo Error:", e)
 
 
-def main():
-    print("🚀 Live IPL Fetcher Started (Render Ready)\n")
-
+# 🔄 Background fetch loop
+def live_fetcher():
+    print("🚀 Live Fetcher Started...\n")
     last_hash = None
 
     while True:
@@ -78,9 +91,26 @@ def main():
                 last_hash = current_hash
             else:
                 print("⏳ No change...")
+        else:
+            print("⚠️ No data fetched")
 
         time.sleep(CHECK_INTERVAL)
 
 
+# 🌐 API Route
+@app.route("/data")
+def get_data():
+    doc = collection.find_one({"matchId": 2417}, {"_id": 0})
+    return jsonify(doc if doc else {})
+
+
+# 🏠 Home Route
+@app.route("/")
+def home():
+    return "🏏 IPL Live API Running"
+
+
+# ▶️ Start app
 if __name__ == "__main__":
-    main()
+    threading.Thread(target=live_fetcher, daemon=True).start()
+    app.run(host="0.0.0.0", port=5000)
