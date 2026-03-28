@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IPL Live Dashboard</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 10px;
+    }
+
+    .highlight {
+      color: #38bdf8;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🏏 IPL Live Match Dashboard</h1>
+
+<div id="status">⏳ Loading...</div>
+
+<div id="content"></div>
+
+<script>
+  const API_URL = "https://a-bhavy-bot-bbheroku-5f1b58e25c41.herokuapp.com/data"; // 🔁 replace
+
+  async function fetchData() {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+
+      document.getElementById("status").innerText =
+        "✅ Updated at " + new Date().toLocaleTimeString();
+
+      renderData(data);
+
+    } catch (err) {
+      document.getElementById("status").innerText = "❌ Error fetching data";
+    }
+  }
+
+  function renderData(data) {
+    const container = document.getElementById("content");
+    container.innerHTML = "";
+
+    if (!data.data) {
+      container.innerHTML = "<p>No data yet...</p>";
+      return;
+    }
+
+    const innings = data.data;
+
+    for (let key in innings) {
+      const inn = innings[key];
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      // Basic info (you can customize more)
+      const team = inn?.Innings1?.BattingTeamName || inn?.BattingTeamName || "Team";
+
+      const score = inn?.Innings1?.TotalRuns || inn?.TotalRuns || "0";
+      const wickets = inn?.Innings1?.Wickets || inn?.Wickets || "0";
+
+      card.innerHTML = `
+        <h2>${key.toUpperCase()}</h2>
+        <p class="highlight">Team: ${team}</p>
+        <p>Score: ${score}/${wickets}</p>
+      `;
+
+      container.appendChild(card);
+    }
+  }
+
+  // 🔄 auto refresh every 2 sec
+  setInterval(fetchData, 2000);
+
+  fetchData();
+</script>
+
+</body>
+</html>
